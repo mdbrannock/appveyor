@@ -1,0 +1,35 @@
+version: 1.0.{build}
+build: off
+
+environment:
+  CONDA_ENV_NAME: lifelines
+  APPVEYOR_CACHE_ENTRY_ZIP_ARGS: -t7z -m0=lzma -mx=5
+
+install:
+  - set PATH=C:\Miniconda37-x64;C:\Miniconda37-x64\Scripts;C:\Miniconda37-x64\Library\bin;%PATH%
+  - ps: Start-FileDownload 'https://github.com/mcmilk/7-Zip-zstd/releases/download/19.00-v1.4.8-R1/Codecs.7z'
+  - 7z x Codecs.7z -o"C:\Program Files\7-Zip\Codecs"
+  - conda install -c conda-forge mamba==0.7.1 -y --freeze-installed
+  
+
+build_script:
+  - conda config --set always_yes yes --set changeps1 no
+  - mamba update -q conda
+  - mamba install -c conda-forge conda-pack
+  - conda env create -f environment_lifelines.yml
+  - conda list -n %CONDA_ENV_NAME% > package-list.txt
+  - >-
+    conda pack --n-threads -1
+    --exclude "*.pyc" --exclude "*.pyx"
+    --name %CONDA_ENV_NAME%
+    --output %CONDA_ENV_NAME%.tar
+  - >-
+    7z a %CONDA_ENV_NAME%.7z
+    -m0=bcj -m1=zstd -mmt=4
+    -mx12
+    %CONDA_ENV_NAME%.tar
+artifacts:
+  - path: $(CONDA_ENV_NAME).7z
+    name: Packed Environment
+  - path: package-list.txt
+    name: Installed Packages (conda list)
